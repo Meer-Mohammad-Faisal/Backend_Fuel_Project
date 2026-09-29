@@ -1,0 +1,44 @@
+services:
+  web:
+    build: .
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      PYTHONPATH: /app/src
+      # These defaults are for local Docker evaluation only. Set real values
+      # through .env or the deployment environment before sharing the service.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-docker-development-only-replace-this-secret-key-1234567890}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://fuel:docker-development-only@db:5432/fuel}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-false}
+      NOMINATIM_BASE_URL: ${NOMINATIM_BASE_URL:-https://nominatim.openstreetmap.org}
+      NOMINATIM_USER_AGENT: ${NOMINATIM_USER_AGENT:-fuel-route-assessment/1.0 (maintainer-contact-required)}
+      GEOCODER_TIMEOUT_SECONDS: ${GEOCODER_TIMEOUT_SECONDS:-10}
+      GEOCODER_MIN_INTERVAL_SECONDS: ${GEOCODER_MIN_INTERVAL_SECONDS:-1}
+      OSRM_BASE_URL: ${OSRM_BASE_URL:-https://router.project-osrm.org}
+      OSRM_PROFILE: ${OSRM_PROFILE:-driving}
+      ROUTING_CONNECT_TIMEOUT_SECONDS: ${ROUTING_CONNECT_TIMEOUT_SECONDS:-3}
+      ROUTING_READ_TIMEOUT_SECONDS: ${ROUTING_READ_TIMEOUT_SECONDS:-10}
+      ROUTE_CACHE_TTL_SECONDS: ${ROUTE_CACHE_TTL_SECONDS:-86400}
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: fuel
+      POSTGRES_USER: fuel
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docker-development-only}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fuel -d fuel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -1,0 +1,235 @@
+{
+  "info": {
+    "name": "Spotter Backend Django Assessment",
+    "description": "Portable API demonstration collection for the Backend Django Engineer assessment. Set the base_url environment variable before running. The infeasible-plan request is disabled because its result depends on the station dataset currently loaded.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/health/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('health status is ok', function () {",
+              "    pm.expect(pm.response.json().status).to.eql('ok');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Route under 500 miles - Washington DC to Philadelphia",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Washington, DC\",\n  \"destination\": \"Philadelphia, PA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/routes/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('route and fuel sections exist', function () {",
+              "    pm.expect(body).to.have.property('route');",
+              "    pm.expect(body).to.have.property('fuel');",
+              "});",
+              "pm.test('route is under 500 miles', function () {",
+              "    pm.expect(body.route.distance_miles).to.be.below(500);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Route requiring multiple fuel stops - New York to Los Angeles",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"New York, NY\",\n  \"destination\": \"Los Angeles, CA\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/routes/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "let body;",
+              "pm.test('response is valid JSON', function () {",
+              "    body = pm.response.json();",
+              "    pm.expect(body).to.be.an('object');",
+              "});",
+              "if (body) {",
+              "    pm.test('route exists', function () {",
+              "        pm.expect(body.route).to.be.an('object');",
+              "    });",
+              "    pm.test('route distance exists and is numeric', function () {",
+              "        pm.expect(body.route.distance_miles).to.be.a('number');",
+              "        pm.expect(body.route.distance_miles).to.be.above(0);",
+              "    });",
+              "    pm.test('route geometry exists', function () {",
+              "        pm.expect(body.route.geometry).to.be.an('object');",
+              "        pm.expect(body.route.geometry.type).to.eql('LineString');",
+              "        pm.expect(body.route.geometry.coordinates).to.be.an('array').that.is.not.empty;",
+              "    });",
+              "    pm.test('fuel section exists and total cost is numeric', function () {",
+              "        pm.expect(body.fuel).to.be.an('object');",
+              "        pm.expect(body.fuel.total_cost).to.be.a('number');",
+              "    });",
+              "    pm.test('stops is an array', function () {",
+              "        pm.expect(body.stops).to.be.an('array');",
+              "    });",
+              "    pm.test('long route has multiple fuel stops', function () {",
+              "        pm.expect(body.stops.length).to.be.at.least(2);",
+              "    });",
+              "    pm.test('every selected stop has required fields', function () {",
+              "        const required = ['station_id', 'station_name', 'city', 'state', 'latitude', 'longitude', 'price_per_gallon', 'distance_along_route_miles', 'gallons_purchased', 'cost'];",
+              "        body.stops.forEach(function (stop) {",
+              "            required.forEach(function (field) { pm.expect(stop, field).to.have.property(field); });",
+              "        });",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invalid request - missing destination",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"New York, NY\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/routes/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP status is 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "pm.test('stable invalid-request error is returned', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.error.code).to.eql('INVALID_REQUEST');",
+              "    pm.expect(body.error.request_id).to.be.a('string').and.not.empty;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Infeasible fuel plan - optional dataset-dependent check",
+      "disabled": true,
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"New York, NY\",\n  \"destination\": \"Chicago, IL\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{base_url}}/api/v1/routes/"
+      },
+      "protocolProfileBehavior": {
+        "disabledSystemHeaders": {}
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP status is 422', function () {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "pm.test('stable infeasible-plan error is returned', function () {",
+              "    pm.expect(pm.response.json().error.code).to.eql('NO_FEASIBLE_FUEL_PLAN');",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
